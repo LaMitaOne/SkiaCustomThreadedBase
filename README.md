@@ -7,7 +7,9 @@ TSkiaCustomThreadedBase
  
 It started as the engine of my vcl flowmotion, then morphed to skia flowmotion and now its in almost all i made for skia4delphi, so i thought maybe some base would be not bad to start from always....and maybe some of you can use it somehow too or ...make it better :)      
    
-With this base, I can finally do all the things I always wanted to create... or probably more ^^  but sleep not so much anymore lol        
+With this base, I can finally do all the things I always wanted to create... or probably more ^^  but sleep not so much anymore lol      
+
+and now YOU can do everything you ever wanted TOO   
    
 How It Works:     
      
