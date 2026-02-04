@@ -36,3 +36,5 @@ Sample Project included
 The included Unit9 creates everything dynamically at runtime. It shows how to start/stop the thread and control the FPS without a single component dropped on the form designer.    
     
 This is a base of that engine, showing only a little sample. It might not be "perfect," but it gets things running. Thought maybe some would like that, enjoy!     
+  
+*P.S. I know a hot pic on fb or somethingk would give way easier some likes... but still, you are allowed to click like here too! ;) *
