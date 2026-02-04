@@ -44,3 +44,7 @@ The included Unit9 creates everything dynamically at runtime. It shows how to st
 This is a base of that engine, showing only a little sample. It might not be "perfect," but it gets things running. Thought maybe some would like that, enjoy!     
   
 *P.S. I know a hot pic on fb or something would give way easier some likes... but still, you are allowed to click like here too! ;) *
+    
+and maybe that way you understand now how chinese signs work too....:   
+   
+<img width="1337" height="1022" alt="Unbenannt" src="https://github.com/user-attachments/assets/875d37af-b07b-4090-b663-ee8402f23eca" />
