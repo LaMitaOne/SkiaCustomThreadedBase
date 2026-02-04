@@ -15,7 +15,7 @@ and now YOU can do everything you ever wanted TOO
 "Where there is a will, there is a way."   
 ehm yes accidently understood now how chinese signs basically work too :D   
    
-How It Works:     
+But back to skia :D ...How that Works:     
      
 It splits the work into two distinct parts so your UI never freezes:    
     
