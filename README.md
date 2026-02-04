@@ -12,10 +12,9 @@ With this base, I can finally do all the things I always wanted to create... or 
 and now YOU can do everything you ever wanted TOO   
    
 有 志 者，事 竟 成 (Yǒu zhì zhě, shì jìng chéng)   
-"Where there is a will, there is a way."   
-ehm yes accidently understood now how chinese signs basically work too :D   
+"Where there is a will, there is a way."    
    
-But back to skia :D ...How that Works:     
+.How that Works:     
      
 It splits the work into two distinct parts so your UI never freezes:    
     
@@ -43,10 +42,3 @@ The included Unit9 creates everything dynamically at runtime. It shows how to st
     
 This is a base of that engine, showing only a little sample. It might not be "perfect," but it gets things running. Thought maybe some would like that, enjoy!     
   
-*P.S. I know a hot pic on fb or something would give way easier some likes... but still, you are allowed to click like here too! ;) *
-    
-and maybe that way you understand now how chinese signs work too....:   
-   
-<img width="1337" height="1022" alt="Unbenannt" src="https://github.com/user-attachments/assets/875d37af-b07b-4090-b663-ee8402f23eca" />
-
-   its easy when u got it...i am just guessing almost all correct...heavy  ^^ ok so..have fun now u understand chinese too :D   
