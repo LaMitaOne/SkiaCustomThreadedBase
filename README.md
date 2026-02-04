@@ -13,6 +13,7 @@ and now YOU can do everything you ever wanted TOO
    
 有 志 者，事 竟 成 (Yǒu zhì zhě, shì jìng chéng)   
 "Where there is a will, there is a way."   
+ehm yes accidently understood now how chinese signs basically work too :D   
    
 How It Works:     
      
