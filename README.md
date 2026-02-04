@@ -49,4 +49,4 @@ and maybe that way you understand now how chinese signs work too....:
    
 <img width="1337" height="1022" alt="Unbenannt" src="https://github.com/user-attachments/assets/875d37af-b07b-4090-b663-ee8402f23eca" />
 
-   its easy when u got it...i am just guessing almost all correct...heavy  ^^^ok so..have fun now u understand chinese too :D   
+   its easy when u got it...i am just guessing almost all correct...heavy  ^^ ok so..have fun now u understand chinese too :D   
