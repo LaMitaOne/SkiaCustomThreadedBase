@@ -11,6 +11,9 @@ With this base, I can finally do all the things I always wanted to create... or 
 
 and now YOU can do everything you ever wanted TOO   
    
+有 志 者，事 竟 成 (Yǒu zhì zhě, shì jìng chéng)   
+"Where there is a will, there is a way."   
+   
 How It Works:     
      
 It splits the work into two distinct parts so your UI never freezes:    
