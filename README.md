@@ -35,6 +35,10 @@ Features
      Virtual Methods: Override UpdateLogic for math and RenderEffect for drawing.    
      Built-In Demo: Includes a bouncing, pulsing rectangle to prove the thread is working.   
      
+
+Latest Changes:
+   v 0.2:
+     - Implemented Doublebuffering logic.
     
 Sample Project included       
     
