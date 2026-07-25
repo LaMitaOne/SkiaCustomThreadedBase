@@ -45,4 +45,15 @@ Sample Project included
 The included Unit9 creates everything dynamically at runtime. It shows how to start/stop the thread and control the FPS without a single component dropped on the form designer.    
     
 This is a base of that engine, showing only a little sample. It might not be "perfect," but it gets things running. Thought maybe some would like that, enjoy!     
-  
+     
+
+   
+If you want to tip me a coffee.. :)   
+    
+<p align="center">
+  <a href="https://www.paypal.com/donate/?hosted_button_id=RX5KTTMXW497Q">
+    <img src="https://www.paypalobjects.com/en_US/i/btn/btn_donate_LG.gif" alt="Donate with PayPal"/>
+  </a>
+</p>
+        
+
