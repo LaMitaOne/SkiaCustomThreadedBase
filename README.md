@@ -1,7 +1,7 @@
 # SkiaCustomThreadedBase
 This is a high-performance, thread-rendered FMX component skeleton   
    
-TSkiaCustomThreadedBase 
+TSkiaCustomThreadedBase v0.3     
    
 <img width="645" height="519" alt="Unbenannt" src="https://github.com/user-attachments/assets/2dceac2f-9dc1-481c-997d-45c82577d225" />
  
@@ -36,17 +36,23 @@ Features
      Built-In Demo: Includes a bouncing, pulsing rectangle to prove the thread is working.   
      
 
-Latest Changes:
-   v 0.2:
-     - Implemented Doublebuffering logic.
-    
+Latest Changes:    
+     
+ v 0.3:    
+   - QPC absolute-deadline frame pacing (render time is subtracted).    
+   - Hybrid Sleep/SpinWait + timeBeginPeriod(1) on Windows    
+   - DeltaTime now uses QPC    
+   - StopThread: real WaitFor instead of the old Sleep(100)
+        
+ v 0.2:    
+   - Implemented Doublebuffering logic.    
+       
 Sample Project included       
     
 The included Unit9 creates everything dynamically at runtime. It shows how to start/stop the thread and control the FPS without a single component dropped on the form designer.    
     
 This is a base of that engine, showing only a little sample. It might not be "perfect," but it gets things running. Thought maybe some would like that, enjoy!     
      
-
    
 If you want to tip me a coffee.. :)   
     
