@@ -8,14 +8,21 @@
   - Threaded Architecture: Separates Logic/Rendering from the UI Thread.
   - Non-Blocking UI: Main thread remains responsive even at high load.
   - Double Buffering: Renders to offscreen surfaces to prevent flickering.
-
+  - Precise Frame Pacing: QPC-based absolute frame deadlines with a hybrid
+    Sleep/SpinWait strategy. The actual render time is automatically
+    subtracted, so high target FPS values (144+) are really reached.
 *******************************************************************************}
-{ Skia-Threaded-Renderer v0.2                                                   }
-{ by Lara Miriam Tamy Reschke                                                                }
+{ Skia-Threaded-Renderer v0.3                                                 }
+{ by Lara Miriam Tamy Reschke                                                  }
 {                                                                              }
 {------------------------------------------------------------------------------}
 {
   Latest Changes:
+   v 0.3:
+   - QPC absolute-deadline frame pacing (render time is subtracted).
+   - Hybrid Sleep/SpinWait + timeBeginPeriod(1) on Windows
+   - DeltaTime now uses QPC
+   - StopThread: real WaitFor instead of the old Sleep(100) 
    v 0.2:
    - Implemented Doublebuffering logic.
 }
@@ -26,11 +33,29 @@ interface
 
 uses
   System.SysUtils, System.Types, System.Classes, System.Math, System.UITypes,
-  System.SyncObjs,
+  System.SyncObjs, System.Diagnostics, // TStopwatch: cross-platform QPC wrapper
   FMX.Types, FMX.Controls, FMX.Skia,
-  System.Skia;
+  System.Skia
+  {$IFDEF MSWINDOWS}
+    , Winapi.MMSystem // timeBeginPeriod / timeEndPeriod
+  {$ENDIF};
+
+const
+  { Busy-spin window: while less than this remains until the frame deadline,
+    we spin instead of sleeping. Large enough to absorb Sleep(1) jitter
+    (typically 1-2ms), small enough to keep CPU load low. }
+  SPIN_THRESHOLD_NS = 2000000; // 2 ms
 
 type
+  { High Precision Timer based on TStopwatch (QPC on Windows, equivalent
+    monotonic clocks on other platforms). }
+  THighResTimer = record
+    Frequency: Int64;
+    procedure Init;
+    function GetTicks: Int64; inline;
+    procedure HybridWaitUntil(const ATargetTicks, ASpinNanoseconds: Int64);
+  end;
+
   { TSkiaCustomThreadedBase
     High-performance, thread-rendered FMX Skia component with Double Buffering.
 
@@ -94,6 +119,44 @@ type
 implementation
 
 {==============================================================================
+  THighResTimer Implementation
+==============================================================================}
+
+procedure THighResTimer.Init;
+begin
+  // TStopwatch.Frequency maps to QueryPerformanceFrequency on Windows
+  Frequency := TStopwatch.Frequency;
+end;
+
+function THighResTimer.GetTicks: Int64;
+begin
+  // Monotonic, high resolution (~100ns on Windows)
+  Result := TStopwatch.GetTimestamp;
+end;
+
+{ HybridWaitUntil
+  Waits until the counter reaches ATargetTicks using a two-phase strategy:
+    Phase 1: Sleep(1) while far from the deadline (cheap on CPU; needs
+             timeBeginPeriod(1) on Windows to be accurate!).
+    Phase 2: Busy-spin the remaining microseconds for frame-exact timing.
+  Returns immediately if the deadline has already passed. }
+procedure THighResTimer.HybridWaitUntil(const ATargetTicks, ASpinNanoseconds: Int64);
+var
+  SpinTicks, Remaining: Int64;
+begin
+  if Frequency = 0 then Exit;
+  SpinTicks := (ASpinNanoseconds * Frequency) div 1000000000;
+
+  Remaining := ATargetTicks - GetTicks;
+  while Remaining > SpinTicks do
+  begin
+    Sleep(1);
+    Remaining := ATargetTicks - GetTicks;
+  end;
+  while GetTicks < ATargetTicks do ;
+end;
+
+{==============================================================================
   TSkiaCustomThreadedBase
 ==============================================================================}
 
@@ -135,79 +198,126 @@ begin
   FThread := TThread.CreateAnonymousThread(
     procedure
     var
-      LastTime, CurrentTime: Cardinal;
-      DeltaSec: Double;
-      SleepTime: Integer;
+      Timer: THighResTimer;
+      Freq, FrameTicks: Int64;
+      NextFrame, NowTicks, LastFrameTicks: Int64;
+      DeltaSec, TimeSec: Double;
       LocalSurface: ISkSurface;
       Snapshot: ISkImage;
       TargetRect: TRectF;
     begin
-      LastTime := TThread.GetTickCount;
-      while not TThread.CheckTerminated do
-      begin
-        CurrentTime := TThread.GetTickCount;
-        DeltaSec := (CurrentTime - LastTime) / 1000.0;
-        LastTime := CurrentTime;
+      {$IFDEF MSWINDOWS}
+      // Critical on Windows: without this, Sleep(1) actually sleeps ~15.6ms
+      // and any target FPS above ~60 is impossible to reach.
+      timeBeginPeriod(1);
+      {$ENDIF}
+      try
+        Timer.Init;
+        Freq := Timer.Frequency;
+        if Freq <= 0 then
+          Freq := 10000000; // fallback: default QPC frequency (10 MHz)
 
-        // 1. UPDATE LOGIC
-        if not FPaused then
-          UpdateLogic(DeltaSec);
+        NowTicks := Timer.GetTicks;
+        LastFrameTicks := NowTicks;
+        NextFrame := NowTicks;
 
-        // 2. RENDER TO OFFSCREEN BUFFER (The Magic Part)
-        // We check if we have a size to avoid errors
-        if (Self.Width > 0) and (Self.Height > 0) then
+        while not TThread.CheckTerminated do
         begin
-          // Create a temporary raster surface in memory.
-          // This is safe to do in a background thread.
-          LocalSurface := TSkSurface.MakeRaster(Round(Self.Width), Round(Self.Height));
+          // Measure the REAL time since the last frame (QPC precision,
+          // no 49-day wrap, no 15.6ms granularity like GetTickCount).
+          NowTicks := Timer.GetTicks;
+          DeltaSec := (NowTicks - LastFrameTicks) / Freq;
+          LastFrameTicks := NowTicks;
 
-          if Assigned(LocalSurface) then
+          // Sanity clamp: first frame or huge stall (debugger pause etc.)
+          if (DeltaSec <= 0) or (DeltaSec > 0.25) then
+            DeltaSec := 1 / 60;
+
+          // 1. UPDATE LOGIC (with real measured delta time)
+          if not FPaused then
+            UpdateLogic(DeltaSec);
+
+          // 2. RENDER TO OFFSCREEN BUFFER (The Magic Part)
+          // We check if we have a size to avoid errors
+          if (Self.Width > 0) and (Self.Height > 0) then
           begin
-            TargetRect := RectF(0, 0, Self.Width, Self.Height);
+            // Create a temporary raster surface in memory.
+            // This is safe to do in a background thread.
+            LocalSurface := TSkSurface.MakeRaster(Round(Self.Width), Round(Self.Height));
 
-            // Call the user's drawing code.
-            // IMPORTANT: This now runs in the BACKGROUND THREAD!
-            RenderEffect(LocalSurface.Canvas, TargetRect, TThread.GetTickCount / 1000.0);
+            if Assigned(LocalSurface) then
+            begin
+              TargetRect := RectF(0, 0, Self.Width, Self.Height);
 
-            // Convert the drawing to a snapshot image
-            Snapshot := LocalSurface.MakeImageSnapshot;
+              // Monotonic seconds since counter start - safe as a
+              // global animation/shader time value.
+              TimeSec := NowTicks / Freq;
 
-            // 3. SWAP BUFFERS SAFELY
-            // Lock for a very short time just to swap the pointer
-            FLock.Acquire;
-            try
-              FBackBuffer := Snapshot; // The main thread will see this
-            finally
-              FLock.Release;
+              // Call the user's drawing code.
+              // IMPORTANT: This runs in the BACKGROUND THREAD!
+              RenderEffect(LocalSurface.Canvas, TargetRect, TimeSec);
+
+              // Convert the drawing to a snapshot image
+              Snapshot := LocalSurface.MakeImageSnapshot;
+
+              // 3. SWAP BUFFERS SAFELY
+              // Lock for a very short time just to swap the pointer
+              FLock.Acquire;
+              try
+                FBackBuffer := Snapshot; // The main thread will see this
+              finally
+                FLock.Release;
+              end;
             end;
           end;
+
+          // 4. REQUEST MAIN THREAD UPDATE
+          // Tell the UI to refresh (it will just draw the image we just made)
+          ThreadSafeInvalidate;
+
+          // 5. FPS PACING - absolute deadline approach.
+          //    The deadline advances by exactly one frame time per frame,
+          //    so the render time above is automatically "subtracted" and
+          //    Sleep jitter never accumulates.
+          if FTargetFPS > 0 then
+            FrameTicks := Round(Freq / FTargetFPS)
+          else
+            FrameTicks := Freq div 60; // TargetFPS = 0: fall back to 60
+          NextFrame := NextFrame + FrameTicks;
+
+          // Drift correction: if we are more than 1s behind (debugger
+          // pause, stall), resync to "now" instead of rushing a burst
+          // of frames to catch up.
+          NowTicks := Timer.GetTicks;
+          if (NowTicks - NextFrame) > Freq then
+            NextFrame := NowTicks;
+
+          // Hybrid wait: Sleep for the bulk, spin the last ~2ms exactly.
+          Timer.HybridWaitUntil(NextFrame, SPIN_THRESHOLD_NS);
         end;
-
-        // 4. REQUEST MAIN THREAD UPDATE
-        // Tell the UI to refresh (it will just draw the image we just made)
-        ThreadSafeInvalidate;
-
-        // FPS Control
-        if FTargetFPS > 0 then
-          SleepTime := Round(1000 / FTargetFPS)
-        else
-          SleepTime := 16;
-        Sleep(SleepTime);
+      finally
+        FThreadActive := False;
+        {$IFDEF MSWINDOWS}
+        timeEndPeriod(1);
+        {$ENDIF}
       end;
-      FThreadActive := False;
     end);
 
-  FThread.FreeOnTerminate := True;
+  FThread.FreeOnTerminate := False; // we own the shutdown (see StopThread)
   FThread.Start;
 end;
 
 procedure TSkiaCustomThreadedBase.StopThread;
 begin
-  if not FThreadActive then Exit;
-  if Assigned(FThread) then
-    FThread.Terminate;
-    // Wait a bit for the loop to finish gracefully
-    Sleep(100);
+  if not Assigned(FThread) then Exit;
+
+  FThread.Terminate;
+  // Real wait instead of the old Sleep(100): the loop checks
+  // CheckTerminated at least once per frame, so this returns quickly.
+  // Safe here: TThread.Queue is non-blocking, and WaitFor called from
+  // the main thread pumps queued calls - no deadlock.
+  FThread.WaitFor;
+  FreeAndNil(FThread);
 end;
 
 procedure TSkiaCustomThreadedBase.ThreadSafeInvalidate;
