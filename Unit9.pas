@@ -6,7 +6,6 @@ uses
   System.SysUtils, System.Types, System.UITypes, System.Classes, System.Variants,
   FMX.Types, FMX.Controls, FMX.Forms, FMX.Graphics, FMX.Dialogs, FMX.Layouts,
   FMX.StdCtrls, FMX.Controls.Presentation,
-  // Add your custom unit here
   uSkiaCustomThreadedBase;
 
 type
@@ -14,17 +13,20 @@ type
     procedure FormCreate(Sender: TObject);
     procedure FormDestroy(Sender: TObject);
   private
-    { Private-Deklarationen }
-    // FIX: Updated type name to match the new unit
     FSkiaView: TSkiaCustomThreadedBase;
 
+    // Ein Layout hält die UI stabil, damit FMX beim Neuzeichnen nicht spinnt
+    UILayout: TLayout;
     btnStart: TButton;
     btnStop: TButton;
-    btnToggleFPS: TButton;
+    lblFPS: TLabel;
+    tbFPS: TTrackBar;
+    FPSTimer: TTimer;
 
     procedure OnStartClick(Sender: TObject);
     procedure OnStopClick(Sender: TObject);
-    procedure OnToggleFPSClick(Sender: TObject);
+    procedure OnFPSTracking(Sender: TObject);
+    procedure OnFPSTimer(Sender: TObject);
   public
     { Public-Deklarationen }
   end;
@@ -38,7 +40,18 @@ implementation
 
 procedure TForm9.FormCreate(Sender: TObject);
 begin
-  // 1. Create the Custom Skia Component
+  Caption := 'Skia Threaded Base Sample';
+  ClientWidth := 800;
+  ClientHeight := 600;
+
+  // 1. UI Layout (Sorgt dafür, dass die Trackbar nicht flackert/verspringt)
+  UILayout := TLayout.Create(Self);
+  UILayout.Parent := Self;
+  UILayout.Align := TAlignLayout.Top;
+  UILayout.Height := 70;
+  UILayout.HitTest := True;
+
+  // 2. Create the Custom Skia Component
   FSkiaView := TSkiaCustomThreadedBase.Create(Self);
   FSkiaView.Parent := Self;
   FSkiaView.Align := TAlignLayout.Client;
@@ -46,41 +59,58 @@ begin
   FSkiaView.HitTest := False;
   FSkiaView.Active := False;
 
-  // 2. Create Start Button
+  // 3. Create Start Button
   btnStart := TButton.Create(Self);
-  btnStart.Parent := Self;
+  btnStart.Parent := UILayout;
   btnStart.Text := 'Start Animation';
   btnStart.Width := 120;
   btnStart.Height := 40;
   btnStart.Position.X := 20;
-  btnStart.Position.Y := 20;
+  btnStart.Position.Y := 15;
   btnStart.OnClick := OnStartClick;
 
-  // 3. Create Stop Button
+  // 4. Create Stop Button
   btnStop := TButton.Create(Self);
-  btnStop.Parent := Self;
+  btnStop.Parent := UILayout;
   btnStop.Text := 'Stop Animation';
   btnStop.Width := 120;
   btnStop.Height := 40;
   btnStop.Position.X := 150;
-  btnStop.Position.Y := 20;
+  btnStop.Position.Y := 15;
   btnStop.OnClick := OnStopClick;
 
-  // 4. Create Toggle FPS Button
-  btnToggleFPS := TButton.Create(Self);
-  btnToggleFPS.Parent := Self;
-  btnToggleFPS.Text := 'Toggle 30/60 FPS';
-  btnToggleFPS.Width := 140;
-  btnToggleFPS.Height := 40;
-  btnToggleFPS.Position.X := 280;
-  btnToggleFPS.Position.Y := 20;
-  btnToggleFPS.OnClick := OnToggleFPSClick;
+  // 5. Create FPS Label
+  lblFPS := TLabel.Create(Self);
+  lblFPS.Parent := UILayout;
+  lblFPS.Text := 'Target: 60 | Real: 0 FPS';
+  lblFPS.Position.X := 290;
+  lblFPS.Position.Y := 10;
+  lblFPS.Width := 200;
+  lblFPS.StyledSettings := [];
+  lblFPS.TextSettings.Font.Size := 12;
+
+  // 6. Create FPS TrackBar
+  tbFPS := TTrackBar.Create(Self);
+  tbFPS.Parent := UILayout;
+  tbFPS.Min := 1;
+  tbFPS.Max := 200;
+  tbFPS.Frequency := 1;
+  tbFPS.Value := 60;
+  tbFPS.Width := 250;
+  tbFPS.Position.X := 290;
+  tbFPS.Position.Y := 30;
+  tbFPS.OnChange := OnFPSTracking;
+
+  // 7. Create FPS Update Timer
+  FPSTimer := TTimer.Create(Self);
+  FPSTimer.Interval := 500;
+  FPSTimer.OnTimer := OnFPSTimer;
+  FPSTimer.Enabled := True;
 end;
 
 procedure TForm9.FormDestroy(Sender: TObject);
 begin
-  // No need to explicitly free FSkiaView or Buttons
-  // because we passed "Self" (Form) as Owner.
+  // Owned components are freed automatically
 end;
 
 procedure TForm9.OnStartClick(Sender: TObject);
@@ -95,17 +125,20 @@ begin
     FSkiaView.Active := False;
 end;
 
-procedure TForm9.OnToggleFPSClick(Sender: TObject);
+procedure TForm9.OnFPSTracking(Sender: TObject);
 begin
-  if Assigned(FSkiaView) then
+  if Assigned(FSkiaView) and Assigned(tbFPS) then
   begin
-    if FSkiaView.TargetFPS = 60 then
-      FSkiaView.TargetFPS := 30
-    else
-      FSkiaView.TargetFPS := 60;
+    // In FMX nutzt man .Value statt .Position
+    FSkiaView.TargetFPS := Round(tbFPS.Value);
+  end;
+end;
 
-    if Assigned(btnToggleFPS) then
-      btnToggleFPS.Text := 'FPS: ' + IntToStr(FSkiaView.TargetFPS);
+procedure TForm9.OnFPSTimer(Sender: TObject);
+begin
+  if Assigned(FSkiaView) and Assigned(lblFPS) then
+  begin
+    lblFPS.Text := Format('Target: %d | Real: %d FPS', [FSkiaView.TargetFPS, FSkiaView.RealFPS]);
   end;
 end;
 

@@ -11,18 +11,24 @@
   - Precise Frame Pacing: QPC-based absolute frame deadlines with a hybrid
     Sleep/SpinWait strategy. The actual render time is automatically
     subtracted, so high target FPS values (144+) are really reached.
+  - RealFPS Monitoring: Measures the actual frames shown on screen per
+    second, independent of the configured TargetFPS. Perfect for comparing
+    against other renderers (e.g. Raylib).
 *******************************************************************************}
-{ Skia-Threaded-Renderer v0.3                                                 }
+{ Skia-Threaded-Renderer v0.4                                                 }
 { by Lara Miriam Tamy Reschke                                                  }
 {                                                                              }
 {------------------------------------------------------------------------------}
 {
   Latest Changes:
+   v 0.4:
+   - Added RealFPS monitoring (measures actual UI presentation rate).
+   - Frame counter based on TStopwatch (QPC), updated inside Draw().
    v 0.3:
    - QPC absolute-deadline frame pacing (render time is subtracted).
    - Hybrid Sleep/SpinWait + timeBeginPeriod(1) on Windows
    - DeltaTime now uses QPC
-   - StopThread: real WaitFor instead of the old Sleep(100) 
+   - StopThread: real WaitFor instead of the old Sleep(100)
    v 0.2:
    - Implemented Doublebuffering logic.
 }
@@ -62,6 +68,7 @@ type
     Changes from standard:
     1. Rendering happens in the background thread (CPU Raster).
     2. The Main Thread only displays the pre-rendered image (Snapshot).
+    3. RealFPS tracks how many snapshots actually reach the screen per second.
   }
   TSkiaCustomThreadedBase = class(TSkCustomControl)
   private
@@ -77,6 +84,12 @@ type
 
     { Logic Properties }
     FActive: Boolean;
+
+    { RealFPS Tracking }
+    FStopwatch: TStopwatch;   // Cross-platform QPC wrapper
+    FFrameCount: Integer;     // Frames presented since last FPS sample
+    FLastFpsTime: Double;     // Last sample timestamp (ms, QPC based)
+    FRealFPS: Integer;        // Measured frames-per-second on the UI thread
 
     { Demo Mode State }
     FDemoRect: TRectF;
@@ -104,6 +117,10 @@ type
   public
     constructor Create(AOwner: TComponent); override;
     destructor Destroy; override;
+    { RealFPS: Actual number of frames composited to the screen per second.
+      Use this to compare effective throughput against TargetFPS or other
+      renderers (Raylib, MultiThreaded variant, etc.). }
+    property RealFPS: Integer read FRealFPS;
   published
     property Align;
     property HitTest default True;
@@ -168,6 +185,15 @@ begin
   FPaused := True;
   FActive := False;
   FTargetFPS := 60;
+
+  // RealFPS init
+  FStopwatch := TStopwatch.Create;
+  FStopwatch.Reset;
+  FStopwatch.Start;
+  FFrameCount := 0;
+  FLastFpsTime := 0;
+  FRealFPS := 0;
+
   SetBounds(0, 0, 300, 200);
   HitTest := True;
   // Demo Mode Init
@@ -276,21 +302,21 @@ begin
           ThreadSafeInvalidate;
 
           // 5. FPS PACING - absolute deadline approach.
-          //    The deadline advances by exactly one frame time per frame,
-          //    so the render time above is automatically "subtracted" and
-          //    Sleep jitter never accumulates.
           if FTargetFPS > 0 then
             FrameTicks := Round(Freq / FTargetFPS)
           else
             FrameTicks := Freq div 60; // TargetFPS = 0: fall back to 60
+
           NextFrame := NextFrame + FrameTicks;
 
-          // Drift correction: if we are more than 1s behind (debugger
-          // pause, stall), resync to "now" instead of rushing a burst
-          // of frames to catch up.
+          // Drift / Desync Correction:
+          // If NextFrame is in the past (e.g. UI was blocked by Trackbar drag
+          // or debugger pause), we immediately reset it to NOW.
+          // This ensures we never rush a burst of frames and always wait
+          // exactly 1 frame interval before the next render.
           NowTicks := Timer.GetTicks;
-          if (NowTicks - NextFrame) > Freq then
-            NextFrame := NowTicks;
+          if NextFrame <= NowTicks then
+            NextFrame := NowTicks + FrameTicks;
 
           // Hybrid wait: Sleep for the bulk, spin the last ~2ms exactly.
           Timer.HybridWaitUntil(NextFrame, SPIN_THRESHOLD_NS);
@@ -334,6 +360,7 @@ end;
 procedure TSkiaCustomThreadedBase.Draw(const ACanvas: ISkCanvas; const ADest: TRectF; const AOpacity: Single);
 var
   ImageToDraw: ISkImage;
+  CurrentTime: Double;
 begin
   // 1. GRAB THE LATEST IMAGE
   FLock.Acquire;
@@ -350,6 +377,19 @@ begin
     // We use High quality sampling just in case of scaling,
     // though NearestNeighbor is faster if 1:1 pixel mapping.
     ACanvas.DrawImage(ImageToDraw, 0, 0, TSkSamplingOptions.High);
+
+    // 3. REAL FPS MEASUREMENT
+    //    We count frames that actually reach the screen here (UI thread).
+    //    This is the true presentation rate, which may differ from
+    //    TargetFPS due to thread scheduling, vsync, or main-thread load.
+    Inc(FFrameCount);
+    CurrentTime := FStopwatch.Elapsed.TotalMilliseconds;
+    if (CurrentTime - FLastFpsTime) >= 1000 then
+    begin
+      FRealFPS := Round(FFrameCount / ((CurrentTime - FLastFpsTime) / 1000.0));
+      FFrameCount := 0;
+      FLastFpsTime := CurrentTime;
+    end;
   end
   else
   begin
