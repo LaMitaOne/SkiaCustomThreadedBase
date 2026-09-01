@@ -5,8 +5,8 @@ TSkiaCustomThreadedBase v0.4
      
 [![Ask DeepWiki](https://deepwiki.com/badge.svg)](https://deepwiki.com/LaMitaOne/SkiaCustomThreadedBase)    
       
-<img width="645" height="519" alt="Unbenannt" src="https://github.com/user-attachments/assets/2dceac2f-9dc1-481c-997d-45c82577d225" />
- 
+<img width="799" height="628" alt="Unbenannt" src="https://github.com/user-attachments/assets/e55fa704-ff24-445f-8948-82ac415637d9" />
+   
 It started as the engine of my vcl flowmotion, then morphed to skia flowmotion and now its in almost all i made for skia4delphi, so i thought maybe some base would be not bad to start from always....and maybe some of you can use it somehow too or ...make it better :)      
    
 With this base, I can finally do all the things I always wanted to create... or probably more ^^  but sleep not so much anymore lol      
