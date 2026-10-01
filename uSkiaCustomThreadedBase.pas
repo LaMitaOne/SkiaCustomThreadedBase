@@ -15,12 +15,14 @@
     second, independent of the configured TargetFPS. Perfect for comparing
     against other renderers (e.g. Raylib).
 *******************************************************************************}
-{ Skia-Threaded-Renderer v0.4                                                 }
+{ Skia-Threaded-Renderer v1.0                                                 }
 { by Lara Miriam Tamy Reschke                                                  }
 {                                                                              }
 {------------------------------------------------------------------------------}
 {
   Latest Changes:
+   v 1.0:
+   - Never had any problem in 9 months with that base at all so its time to get 1.0
    v 0.4:
    - Added RealFPS monitoring (measures actual UI presentation rate).
    - Frame counter based on TStopwatch (QPC), updated inside Draw().
