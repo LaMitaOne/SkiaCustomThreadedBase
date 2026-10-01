@@ -1,7 +1,7 @@
 # SkiaCustomThreadedBase
 This is a high-performance, thread-rendered FMX component skeleton   
    
-TSkiaCustomThreadedBase v0.4     
+TSkiaCustomThreadedBase v1.0     
      
 [![Ask DeepWiki](https://deepwiki.com/badge.svg)](https://deepwiki.com/LaMitaOne/SkiaCustomThreadedBase)    
       
@@ -38,8 +38,11 @@ Features
      Built-In Demo: Includes a bouncing, pulsing rectangle to prove the thread is working.   
      
 
-Latest Changes:       
-
+Latest Changes:     
+     
+ v 1.0:      
+   - Never had any problem in 9 months with that base at all so its time to get 1.0     
+     
  v 0.4:    
    - Added RealFPS monitoring (measures actual UI presentation rate).    
    - Frame counter based on TStopwatch (QPC), updated inside Draw().    
